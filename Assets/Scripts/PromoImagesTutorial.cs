@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI; 
 using DeltaDNA;
 
 namespace TutoralPromoImages
@@ -9,6 +10,7 @@ namespace TutoralPromoImages
     {
         public const string CLIENT_VERSION = "0.0.01";
 
+        public Text lblUserID; 
 
         // Use this for initialization
         void Start()
@@ -24,6 +26,8 @@ namespace TutoralPromoImages
                 "https://collect2674dltcr.deltadna.net/collect/api",
                 "https://engage2674dltcr.deltadna.net"
             );
+
+            this.lblUserID.text = "UserID : " + DDNA.Instance.UserID; 
         }
 
         // Update is called once per frame
