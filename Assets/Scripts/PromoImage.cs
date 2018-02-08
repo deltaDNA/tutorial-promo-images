@@ -11,9 +11,8 @@ namespace DeltaDNA
     public class PromoImage : MonoBehaviour
     {
 
-        // This is the decision point and an engage request parameter
-        // that will be used to target each promo image slot indepently
-        private const string decisionPoint = "promoCheck";
+        // This is the decision point request parameter
+        // that will be used to target each promo image slot indepently       
         public string promoLocation;
 
         // Texture objects to hold the default and downloaded image 
@@ -37,7 +36,31 @@ namespace DeltaDNA
             }
         }
 
-        // When the PromoImage is told to refresh itself
+        
+        // Use this for initialization
+        void Start()
+        {
+            // Check for a Promo Image from deltaDNA Engage
+            // if the promo location request parameter is set                               
+            if(string.IsNullOrEmpty(promoLocation))
+            {
+                Debug.Log("Promo Slot Location Name not Set");
+                return;
+            }
+
+            // Make sure deltaDNA SDK is running before making Engage requests
+            if (DDNA.Instance.isActiveAndEnabled)
+            {
+                Debug.Log("Check Engage for Promo Image for " + promoLocation);
+                promoCheck();
+            }
+            else
+            {
+                Debug.Log("Check Engage for Promo Image for " + promoLocation + " Failed, deltaDNA SDK not running, try again later (Hit Refresh)");
+            }
+        }
+
+        // Method used when the PromoImage is told to refresh itself
         // This public method can be triggered from the Promo Image's parent
         // with a BroadcastMessage("PromoRefresh") call
         public void PromoRefresh()
@@ -46,40 +69,11 @@ namespace DeltaDNA
             Start();
         }
 
-
-        // Use this for initialization
-        void Start()
-        {
-            // Check for a Promo Image from deltaDNA Engage
-            // if the decision point and promo location are set
-            if (string.IsNullOrEmpty(decisionPoint))
-            {
-                Debug.Log("Decision Point not Set");
-                return;
-            }
-                               
-            if(string.IsNullOrEmpty(promoLocation))
-            {
-                Debug.Log("Promo Slot Location Name not Set");               
-            }
-
-            /* Will need something here to prevent Engage requests
-             * before the SDK has started.
-            do
-            {
-               StartCoroutine(Wait(1.0f));  // Don't and make Engage requests until SDK has started.
-            } while (!DDNA.Instance.isActiveAndEnabled);
-            */
-
-            Debug.Log("Check Engage for Promo Image for " + promoLocation);
-            promoCheck();
-        }
-
         // Make an Engage In-Game campaign request
         // To check for a promo image for this promo location
         void promoCheck()
         {
-            var engagement = new Engagement(decisionPoint)
+            var engagement = new Engagement("promoCheck")
                 .AddParam("promoLocation", promoLocation);
 
             // Make request
@@ -116,7 +110,7 @@ namespace DeltaDNA
                 }                
             }
 
-            // TODO - Add logic to download additional game parmaters from Engage
+            // TODO - Add logic to download additional game parameters from Engage
             // To handle deeplinks, rewards, promo durations, expiry ...
         }
 
