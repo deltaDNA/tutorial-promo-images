@@ -10,10 +10,15 @@ namespace DeltaDNA
 
     public class PromoImage : MonoBehaviour
     {
+                       
+        public string promoLocation;  // The decision point request parameter that will be used to target each promo image slot indepently
 
-        // This is the decision point request parameter
-        // that will be used to target each promo image slot indepently       
-        public string promoLocation;
+
+        public string navigationLocation = null;    // The URL the player should be navigated to if the Image message is setup as a "link"
+        string clickType = null;                    // The type of action that should be performed if the player clicks on the button
+        string clickValue = null;                   // The value of the action that should be performed if the player clicks on the button
+        JSONObject parameters = null;                // Any Game Parameters that are attached to the promo Image
+        JSONObject eventParams = null;              // Meta data about the Engage in game campaign that the promo image originated from
 
         // Texture objects to hold the default and downloaded image 
         public Texture2D defaultImage;
@@ -69,6 +74,18 @@ namespace DeltaDNA
             Start();
         }
 
+        public void OnClick()
+        {
+            // Promo Image Button Clicked
+            Debug.Log("PromoImage Button Clicked : " + promoLocation);
+
+            if (!string.IsNullOrEmpty(navigationLocation))
+            {
+                Debug.Log("Navigating player to : " + navigationLocation);
+                Application.OpenURL(navigationLocation);
+            }
+        }
+
         // Make an Engage In-Game campaign request
         // To check for a promo image for this promo location
         void promoCheck()
@@ -84,6 +101,8 @@ namespace DeltaDNA
                 {
                     // Get Image info from Engage Response
                     FetchPromoImage(response);
+                    parameters = FetchParams(response);
+                    eventParams = FetchEventParams(response);
                 }
 
             }, (exception) => {
@@ -106,14 +125,56 @@ namespace DeltaDNA
                 {
                     string imageUrl = image["url"] as string;
                     // Download Image from URL
-                    StartCoroutine(LoadResourceCoroutine(imageUrl));                   
+                    StartCoroutine(LoadResourceCoroutine(imageUrl));
+
+                    // Fetch Button Action Type and Value
+                    FetchButtonValues(image);
                 }                
             }
-
-            // TODO - Add logic to download additional game parameters from Engage
-            // To handle deeplinks, rewards, promo durations, expiry ...
         }
 
+        // Fetch GameParamters sent with the image action
+        // These should be used by the 
+        private JSONObject FetchParams(Engagement response)
+        {
+            if (response.JSON.ContainsKey("parameters"))
+            {
+                return response.JSON["parameters"] as JSONObject;
+            }
+            return null; 
+        }
+
+        private JSONObject FetchEventParams(Engagement response)
+        {
+            if (response.JSON.ContainsKey("eventParams"))
+            {
+                return response.JSON["eventParams"] as JSONObject;
+            }
+            return null;
+        }
+
+        private void FetchButtonValues(JSONObject image)
+        {
+            // Get the Action Values for the Image Message Background
+            JSONObject layout = image["layout"] as JSONObject;
+            JSONObject landscape = layout["landscape"] as JSONObject;
+            JSONObject background = landscape["background"] as JSONObject;
+            JSONObject action = background["action"] as JSONObject;
+
+            if (action.ContainsKey("type") && action.ContainsKey("value"))
+            {
+                clickType = action["type"] as string;
+                clickValue = action["value"] as string;
+
+                // Navigation Link Found
+                if (clickType == "link" && !string.IsNullOrEmpty(clickValue))
+                {
+                    Debug.Log("Navigation Link found");
+                    navigationLocation = clickValue;
+                }
+            }
+            
+        }
         // Download Image from URL to a Texture
         private IEnumerator LoadResourceCoroutine(string url)
         {
