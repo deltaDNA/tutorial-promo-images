@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,10 +11,7 @@ namespace DeltaDNA
 
     public class PromoImage : MonoBehaviour
     {
-                       
-        public string promoLocation;                // The decision point request parameter that will be used to target each promo image slot indepently
-        
-        public string navigationLocation = null;    // The URL the player should be navigated to if the Image message is setup as a "link"
+        public string promoLocation;                // The decision point request parameter that will be used to target each promo image slot indepently              
         string clickType = null;                    // The type of action that should be performed if the player clicks on the button
         string clickValue = null;                   // The value of the action that should be performed if the player clicks on the button
         JSONObject parameters = null;               // Any Game Parameters that are attached to the promo Image
@@ -26,10 +24,36 @@ namespace DeltaDNA
         // The image that will display our promo
         private Image promoImage;
 
+        // The callback method that will fire when the promo image is clicked by the player
+        // Should be implemented in game code to react to Game Parameters sent with the promo image
+        public event Action<PromoClickArgs> PromoImageClicked;
 
-        // When the Promo Image is created
+        
+        // Object that will be returned in callback so you can see what promo action type, value and parameters the game needs to react to.
+        public class PromoClickArgs : System.EventArgs
+        {
+            public PromoClickArgs(JSONObject parameters, string type, string value)
+            {
+                this.parameters = parameters;
+                this.ActionType = type;
+                this.ActionValue = value;
+            }
+
+            public JSONObject parameters { get; set; }
+            public string ActionType { get; set; }
+            public string ActionValue { get; set; }
+        }
+
+
+        
+        // Awae method called when the Promo Image is created
         private void Awake()
         {
+            clickType = null; 
+            clickValue = null;
+            parameters = null;
+            eventParams = null;
+            
             // Get Promo Image Panel
             promoImage = GetComponentInChildren<Image>();
             
@@ -164,13 +188,6 @@ namespace DeltaDNA
             {
                 clickType = action["type"] as string;
                 clickValue = action["value"] as string;
-
-                // Navigation Link Found
-                if (clickType == "link" && !string.IsNullOrEmpty(clickValue))
-                {
-                    Debug.Log("Navigation Link found");
-                    navigationLocation = clickValue;
-                }
             }
             
         }
@@ -206,18 +223,19 @@ namespace DeltaDNA
 
                 DDNA.Instance.RecordEvent(promoImageClicked);
 
-
-                // Navigage to browser location if this was URL navigation link
-                if (!string.IsNullOrEmpty(navigationLocation))
-                {
-                    Debug.Log("Navigating player to : " + navigationLocation);
-                    Application.OpenURL(navigationLocation);
-                }
-
                 if (parameters != null)
                 {
-                    // TODO .. ADD YOUR CODE HERE To React to Game Parameters embedded promo image
+                    // Callback method to be populated in your game code in order to react to player clicking on promo images
+                    // will contain an object indicating the name and value of the promo image action along with any game parameters attched to it. 
+                    PromoImage.PromoClickArgs promoClickArgs = new PromoImage.PromoClickArgs(parameters, clickType, clickValue);
+                    if (this.PromoImageClicked != null)
+                    {
+                        this.PromoImageClicked(promoClickArgs);
+                    }
                 }
+
+                // Refresh this Promo Image now that it has been clicked.
+                this.PromoRefresh(); 
             }
         }
 
