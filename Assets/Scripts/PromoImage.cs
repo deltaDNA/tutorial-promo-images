@@ -11,13 +11,12 @@ namespace DeltaDNA
     public class PromoImage : MonoBehaviour
     {
                        
-        public string promoLocation;  // The decision point request parameter that will be used to target each promo image slot indepently
-
-
+        public string promoLocation;                // The decision point request parameter that will be used to target each promo image slot indepently
+        
         public string navigationLocation = null;    // The URL the player should be navigated to if the Image message is setup as a "link"
         string clickType = null;                    // The type of action that should be performed if the player clicks on the button
         string clickValue = null;                   // The value of the action that should be performed if the player clicks on the button
-        JSONObject parameters = null;                // Any Game Parameters that are attached to the promo Image
+        JSONObject parameters = null;               // Any Game Parameters that are attached to the promo Image
         JSONObject eventParams = null;              // Meta data about the Engage in game campaign that the promo image originated from
 
         // Texture objects to hold the default and downloaded image 
@@ -42,7 +41,8 @@ namespace DeltaDNA
         }
 
         
-        // Use this for initialization
+        // promoImage Start(), called when promo image is instantiated or when the PromoRefresh() method is called externally
+        // Results in a call to Engage to retrieve a new promo image for the player.
         void Start()
         {
             // Check for a Promo Image from deltaDNA Engage
@@ -65,6 +65,7 @@ namespace DeltaDNA
             }
         }
 
+
         // Method used when the PromoImage is told to refresh itself
         // This public method can be triggered from the Promo Image's parent
         // with a BroadcastMessage("PromoRefresh") call
@@ -73,18 +74,7 @@ namespace DeltaDNA
             Debug.Log("Refreshing Promo Image : " + promoLocation);
             Start();
         }
-
-        public void OnClick()
-        {
-            // Promo Image Button Clicked
-            Debug.Log("PromoImage Button Clicked : " + promoLocation);
-
-            if (!string.IsNullOrEmpty(navigationLocation))
-            {
-                Debug.Log("Navigating player to : " + navigationLocation);
-                Application.OpenURL(navigationLocation);
-            }
-        }
+        
 
         // Make an Engage In-Game campaign request
         // To check for a promo image for this promo location
@@ -112,7 +102,8 @@ namespace DeltaDNA
         }
 
 
-        // Get image info from Engage Response
+        // Get image info from Engage Response, download the image
+        // and retrieve values for the button click action type and value
         void FetchPromoImage(Engagement response)
         {
             // Check for Image Object
@@ -133,8 +124,10 @@ namespace DeltaDNA
             }
         }
 
+        
         // Fetch GameParamters sent with the image action
-        // These should be used by the 
+        // These should be used by the game to react to Game Parameters 
+        // Placed in the promo image action by the marketer
         private JSONObject FetchParams(Engagement response)
         {
             if (response.JSON.ContainsKey("parameters"))
@@ -144,6 +137,10 @@ namespace DeltaDNA
             return null; 
         }
 
+
+        // Fetch Event Paramters from the Engage request
+        // These will be automatically added back in to the "promoImageClicked" event
+        // recorded if the player clicks on one of the promo images for reporting and analysis        
         private JSONObject FetchEventParams(Engagement response)
         {
             if (response.JSON.ContainsKey("eventParams"))
@@ -153,6 +150,8 @@ namespace DeltaDNA
             return null;
         }
 
+
+        // Fetch the Image Action button click type and value         
         private void FetchButtonValues(JSONObject image)
         {
             // Get the Action Values for the Image Message Background
@@ -175,6 +174,54 @@ namespace DeltaDNA
             }
             
         }
+
+
+        // Promo Image Button Clicked by player
+        public void OnClick()
+        {
+            Debug.Log("PromoImage Button Clicked : " + promoLocation);
+
+            if (!string.IsNullOrEmpty(clickType))
+            {
+                // Record an event in deltaDNA using eventParams Enagage meta data to indicate Campaign Action 
+                GameEvent promoImageClicked = new GameEvent("promoImageClicked")
+                    .AddParam("promoLocation", promoLocation)
+                    .AddParam("promoImageClickType", clickType);
+
+                if (!string.IsNullOrEmpty(clickValue))
+                {
+                    promoImageClicked.AddParam("promoImageClickValue", clickValue);
+                }
+
+                if (eventParams != null)
+                {
+                    promoImageClicked.AddParam("responseDecisionpointName", eventParams["responseDecisionpointName"] as string)
+                        .AddParam("responseEngagementID", eventParams["responseEngagementID"])
+                        .AddParam("responseEngagementName", eventParams["responseEngagementName"])
+                        .AddParam("responseEngagementType", eventParams["responseEngagementType"])
+                        .AddParam("responseTransactionID", eventParams["responseTransactionID"])
+                        .AddParam("responseVariantName", eventParams["responseVariantName"])
+                        .AddParam("responseMessageSequence", eventParams["responseMessageSequence"]);
+                }
+
+                DDNA.Instance.RecordEvent(promoImageClicked);
+
+
+                // Navigage to browser location if this was URL navigation link
+                if (!string.IsNullOrEmpty(navigationLocation))
+                {
+                    Debug.Log("Navigating player to : " + navigationLocation);
+                    Application.OpenURL(navigationLocation);
+                }
+
+                if (parameters != null)
+                {
+                    // TODO .. ADD YOUR CODE HERE To React to Game Parameters embedded promo image
+                }
+            }
+        }
+
+
         // Download Image from URL to a Texture
         private IEnumerator LoadResourceCoroutine(string url)
         {
@@ -215,17 +262,6 @@ namespace DeltaDNA
                 Debug.Log("Updating " + promoLocation); 
                 promoImage.sprite = Sprite.Create(downloadedImage, new Rect(0.0f, 0.0f, downloadedImage.width, downloadedImage.height), new Vector2(0.0f, 0.0f), 1.0f);
             }
-        }
-
-
-
-
-
-
-        // Utility method to force dealy
-        IEnumerator Wait(float duration)
-        {
-            yield return new WaitForSeconds(duration);   //Wait
         }
     }
 }
