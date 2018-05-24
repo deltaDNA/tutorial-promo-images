@@ -12,14 +12,21 @@ namespace DeltaDNA
     public class PromoImage : MonoBehaviour
     {
         public string promoLocation;                // The decision point request parameter that will be used to target each promo image slot indepently              
+        public Text offerTitle;
+        public Text offerText;
+        
+        private DateTime offerExpiry = DateTime.MinValue;
+        private int offerDurationSeconds; 
+
         string clickType = null;                    // The type of action that should be performed if the player clicks on the button
         string clickValue = null;                   // The value of the action that should be performed if the player clicks on the button
         JSONObject parameters = null;               // Any Game Parameters that are attached to the promo Image
         JSONObject eventParams = null;              // Meta data about the Engage in game campaign that the promo image originated from
 
         // Texture objects to hold the default and downloaded image 
-        public Texture2D defaultImage;
+        public  Texture2D defaultImage;
         private Texture2D downloadedImage;
+         
 
         // The image that will display our promo
         private Image promoImage;
@@ -53,6 +60,11 @@ namespace DeltaDNA
             clickValue = null;
             parameters = null;
             eventParams = null;
+            offerText.text = "";
+            offerTitle.text = "";
+            offerText.enabled = false;
+            
+            offerDurationSeconds = -1;
             
             // Get Promo Image Panel
             promoImage = GetComponentInChildren<Image>();
@@ -88,7 +100,19 @@ namespace DeltaDNA
                 Debug.Log("Check Engage for Promo Image for " + promoLocation + " Failed, deltaDNA SDK not running, try again later (Hit Refresh)");
             }
         }
+    
+        void Update()
+        {
+            if (offerExpiry > DateTime.Now)
+            {
+                UpdateExpiry();
+            }
+            else if(offerDurationSeconds> 0)
+            {
+                ExpireOffer();
+            }
 
+        }
 
         // Method used when the PromoImage is told to refresh itself
         // This public method can be triggered from the Promo Image's parent
@@ -99,6 +123,16 @@ namespace DeltaDNA
             Start();
         }
         
+        private void UpdateExpiry()
+        {
+            offerText.text = string.Format("Expires in {0:0} seconds", offerExpiry.Subtract(DateTime.Now).TotalSeconds);
+        }
+        private void ExpireOffer()
+        {
+            offerText.text = "Offer Expired!";
+            offerDurationSeconds = -1;
+            offerExpiry = DateTime.MinValue;
+        }
 
         // Make an Engage In-Game campaign request
         // To check for a promo image for this promo location
@@ -117,6 +151,27 @@ namespace DeltaDNA
                     FetchPromoImage(response);
                     parameters = FetchParams(response);
                     eventParams = FetchEventParams(response);
+
+                    offerDurationSeconds = -1;
+                    offerExpiry = DateTime.MinValue; 
+
+                    if (parameters.ContainsKey("offerTitle"))
+                    {
+                        offerTitle.text = parameters["offerTitle"] as string;
+                    }
+
+                    if (parameters.ContainsKey("offerText"))
+                    {
+                        offerText.text = parameters["offerText"] as string;
+                    }
+                    if (parameters.ContainsKey("offerDurationSeconds"))
+                    {
+                        offerDurationSeconds = Convert.ToInt32(parameters["offerDurationSeconds"]);
+                        offerExpiry = DateTime.Now.AddSeconds(offerDurationSeconds);
+                        UpdateExpiry();
+                    }
+
+
                 }
 
             }, (exception) => {
@@ -197,6 +252,14 @@ namespace DeltaDNA
         public void OnClick()
         {
             Debug.Log("PromoImage Button Clicked : " + promoLocation);
+
+            offerText.text = "";
+            offerTitle.text = "";
+
+            if (offerDurationSeconds > 0)
+            {
+                ExpireOffer();
+            }
 
             if (!string.IsNullOrEmpty(clickType))
             {
@@ -279,6 +342,8 @@ namespace DeltaDNA
             {
                 Debug.Log("Updating " + promoLocation); 
                 promoImage.sprite = Sprite.Create(downloadedImage, new Rect(0.0f, 0.0f, downloadedImage.width, downloadedImage.height), new Vector2(0.0f, 0.0f), 1.0f);
+                offerTitle.enabled = !string.IsNullOrEmpty(offerTitle.text);
+                offerText.enabled = !string.IsNullOrEmpty(offerText.text); 
             }
         }
     }
