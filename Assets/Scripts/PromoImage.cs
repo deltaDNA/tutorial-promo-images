@@ -100,19 +100,6 @@ namespace DeltaDNA
                 Debug.Log("Check Engage for Promo Image for " + promoLocation + " Failed, deltaDNA SDK not running, try again later (Hit Refresh)");
             }
         }
-    
-        void Update()
-        {
-            if (offerExpiry > DateTime.Now)
-            {
-                UpdateExpiry();
-            }
-            else if(offerDurationSeconds> 0)
-            {
-                ExpireOffer();
-            }
-
-        }
 
         // Method used when the PromoImage is told to refresh itself
         // This public method can be triggered from the Promo Image's parent
@@ -121,12 +108,32 @@ namespace DeltaDNA
         {
             Debug.Log("Refreshing Promo Image : " + promoLocation);
             Start();
+        }    
+
+
+        // Method used to update any dynamic text displays on promo images
+        // In this case it is displaying a countdown timer on one of them
+        void Update()
+        {
+            if (offerExpiry > DateTime.Now)
+            {
+                UpdateExpiry();
+            }
+            else if(offerDurationSeconds > 0 ) 
+            {
+                ExpireOffer();
+            }
+
         }
+
+
         
         private void UpdateExpiry()
         {
             offerText.text = string.Format("Expires in {0:0} seconds", offerExpiry.Subtract(DateTime.Now).TotalSeconds);
         }
+
+        // Change the offer text and set timer paramters to ensure offer is epired.
         private void ExpireOffer()
         {
             offerText.text = "Offer Expired!";
@@ -151,33 +158,11 @@ namespace DeltaDNA
                     FetchPromoImage(response);
                     parameters = FetchParams(response);
                     eventParams = FetchEventParams(response);
-
-                    offerDurationSeconds = -1;
-                    offerExpiry = DateTime.MinValue; 
-
-                    if (parameters.ContainsKey("offerTitle"))
-                    {
-                        offerTitle.text = parameters["offerTitle"] as string;
-                    }
-
-                    if (parameters.ContainsKey("offerText"))
-                    {
-                        offerText.text = parameters["offerText"] as string;
-                    }
-                    if (parameters.ContainsKey("offerDurationSeconds"))
-                    {
-                        offerDurationSeconds = Convert.ToInt32(parameters["offerDurationSeconds"]);
-                        offerExpiry = DateTime.Now.AddSeconds(offerDurationSeconds);
-                        UpdateExpiry();
-                    }
-
-
                 }
 
             }, (exception) => {
                 Debug.Log("Engage reported an error: " + exception.Message);
             });
-
         }
 
 
@@ -209,9 +194,31 @@ namespace DeltaDNA
         // Placed in the promo image action by the marketer
         private JSONObject FetchParams(Engagement response)
         {
+
+            offerDurationSeconds = -1;
+            offerExpiry = DateTime.MinValue;
+
             if (response.JSON.ContainsKey("parameters"))
             {
-                return response.JSON["parameters"] as JSONObject;
+                JSONObject parameters = response.JSON["parameters"] as JSONObject; 
+                if (parameters.ContainsKey("offerTitle"))
+                {
+                    offerTitle.text = parameters["offerTitle"] as string;
+                }
+
+                if (parameters.ContainsKey("offerText"))
+                {
+                    offerText.text = parameters["offerText"] as string;
+                }
+
+                if (parameters.ContainsKey("offerDurationSeconds"))
+                {
+                    offerDurationSeconds = Convert.ToInt32(parameters["offerDurationSeconds"]);
+                    offerExpiry = DateTime.Now.AddSeconds(offerDurationSeconds);
+                    UpdateExpiry();
+                }
+
+                return parameters;
             }
             return null; 
         }
